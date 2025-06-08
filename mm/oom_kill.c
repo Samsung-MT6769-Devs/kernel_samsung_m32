@@ -41,7 +41,6 @@
 #include <linux/kthread.h>
 #include <linux/init.h>
 #include <linux/mmu_notifier.h>
-#include <linux/cred.h>
 
 #ifdef CONFIG_MTK_ION
 #include "mtk/ion_drv.h"
@@ -58,7 +57,7 @@
 
 int sysctl_panic_on_oom;
 int sysctl_oom_kill_allocating_task;
-int sysctl_oom_dump_tasks = 1;
+int sysctl_oom_dump_tasks;
 
 DEFINE_MUTEX(oom_lock);
 /* Serializes oom_score_adj and oom_score_adj_min updates */
@@ -695,7 +694,6 @@ static inline void wake_oom_reaper(struct task_struct *tsk)
  */
 static void mark_oom_victim(struct task_struct *tsk)
 {
-	const struct cred *cred;
 	struct mm_struct *mm = tsk->mm;
 
 	WARN_ON(oom_killer_disabled);
@@ -717,9 +715,7 @@ static void mark_oom_victim(struct task_struct *tsk)
 	 */
 	__thaw_task(tsk);
 	atomic_inc(&oom_victims);
-	cred = get_task_cred(tsk);
-	trace_mark_victim(tsk, cred->uid.val);
-	put_cred(cred);
+	trace_mark_victim(tsk->pid);
 }
 
 /**
@@ -739,7 +735,7 @@ void exit_oom_victim(void)
 void oom_killer_enable(void)
 {
 	oom_killer_disabled = false;
-	pr_info("OOM killer enabled.\n");
+ 	pr_debug("OOM killer enabled.\n");
 }
 
 /**
@@ -776,7 +772,7 @@ bool oom_killer_disable(signed long timeout)
 		oom_killer_enable();
 		return false;
 	}
-	pr_info("OOM killer disabled.\n");
+ 	pr_debug("OOM killer disabled.\n");
 
 	return true;
 }
